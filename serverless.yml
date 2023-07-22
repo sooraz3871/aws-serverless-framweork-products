@@ -1,0 +1,69 @@
+service: product-service
+
+
+custom:
+  tableName: 'Products'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: ap-southeast-2 
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [ ProductsTable, Arn ]
+
+functions:
+  createProduct:
+    handler: lambdas/createProductHandler.createProduct
+    events:
+      - http:
+          path: product
+          method: post
+    environment:
+     PRODUCTS_TABLE: ${self:custom.tableName}      
+
+  getProducts:
+    handler: lambdas/getProductsHandler.getProducts
+    events:
+      - http:
+          path: products
+          method: get
+    environment:
+     PRODUCTS_TABLE: ${self:custom.tableName}       
+
+  deleteProduct:
+    handler: lambdas/deleteProductHandler.deleteProduct
+    events:
+      - http:
+          path: product/{productId}
+          method: delete
+    environment:
+     PRODUCTS_TABLE: ${self:custom.tableName}       
+
+resources:
+  Resources:
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: productId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: productId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+ 
