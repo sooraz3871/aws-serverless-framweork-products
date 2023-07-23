@@ -8,8 +8,9 @@ module.exports.triggerEvent = async (product) => {
     const ebClient = new EventBridgeClient();
 
     const details={
-      bucketname:process.env.BUCKET_NAME,
-      image_url:product.image_url
+      bucketName:process?.env?.PRODUCTS_BUCKET,
+      imageURL:product?.imageURL,
+      thumbnailKey:product?.productId
     }
     const detailString = JSON.stringify(details);
     const input = {

@@ -18,7 +18,6 @@ provider:
             - dynamodb:Scan
             - dynamodb:GetItem
             - dynamodb:PutItem
-            - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - s3:PutObject
             - events:PutEvents  # Permission to publish events to EventBridge
@@ -39,9 +38,10 @@ functions:
       - http:
           path: product
           method: post
+          cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}   
-     BUCKET_NAME: ${self:custom.bucketName}    
+     PRODUCTS_BUCKET: ${self:custom.bucketName}    
 
   getProducts:
     handler: lambdas/getProductsHandler.getProducts
@@ -49,6 +49,7 @@ functions:
       - http:
           path: products
           method: get
+          cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}       
 
@@ -58,6 +59,7 @@ functions:
       - http:
           path: product/{productId}
           method: delete
+          cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}
   
@@ -68,12 +70,7 @@ functions:
           eventBus: default
           pattern:
             source:
-              - 'custom.createProduct'
-            # detail:
-            #   detailType:
-            #     - 'CreateProductEvent'
-    environment:
-     PRODUCTS_BUCKET: ${self:custom.bucketName}             
+              - 'custom.createProduct' 
 
 resources:
   Resources:
@@ -85,6 +82,15 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:custom.bucketName}
+        CorsConfiguration:  # Add CORS configuration for the bucket
+          CorsRules:
+            - AllowedHeaders:
+                - "*"
+              AllowedMethods:
+                - GET
+              AllowedOrigins:
+                - "*"  # Replace with specific allowed origins if needed
+
     ProductsTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -100,3 +106,4 @@ resources:
           WriteCapacityUnits: 5
 
  
+
