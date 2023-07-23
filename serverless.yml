@@ -51,7 +51,8 @@ functions:
           method: get
           cors: true
     environment:
-     PRODUCTS_TABLE: ${self:custom.tableName}       
+     PRODUCTS_TABLE: ${self:custom.tableName}
+     PRODUCTS_BUCKET: ${self:custom.bucketName}       
 
   deleteProduct:
     handler: lambdas/deleteProductHandler.deleteProduct
@@ -62,6 +63,7 @@ functions:
           cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}
+     PRODUCTS_BUCKET: ${self:custom.bucketName}    
   
   convertToThumbnail:
     handler: lambdas/convertToThumbnail.convertToThumbnail
