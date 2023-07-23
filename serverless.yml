@@ -3,11 +3,12 @@ service: product-service
 
 custom:
   tableName: 'Products'
+  bucketName: 'productsbucketfortesting'
 
 provider:
   name: aws
-  runtime: nodejs14.x
-  region: ap-southeast-2 
+  runtime: nodejs16.x
+  region: ap-southeast-2
   iam:
     role:
       statements:
@@ -19,8 +20,17 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
+            - s3:PutObject
+            - events:PutEvents  # Permission to publish events to EventBridge
+            - events:DescribeEventBus  # Permission to describe EventBridge event bus
+            - events:PutRule  # Permission to create/update EventBridge rule
+            - events:PutTargets
+            - lambda:InvokeFunction  # Permission to create/update targets for EventBridge rule
+            
           Resource:
-            - Fn::GetAtt: [ ProductsTable, Arn ]
+            - Fn::GetAtt: [ ProductsTable, Arn ]  # Replace with the ARN of the DynamoDB table
+            - Fn::GetAtt: [ ProductBucket, Arn ]  # Replace with the ARN of the S3 bucket
+            - '*'  # Allows all resources for EventBridge permissions
 
 functions:
   createProduct:
@@ -30,7 +40,8 @@ functions:
           path: product
           method: post
     environment:
-     PRODUCTS_TABLE: ${self:custom.tableName}      
+     PRODUCTS_TABLE: ${self:custom.tableName}   
+     BUCKET_NAME: ${self:custom.bucketName}    
 
   getProducts:
     handler: lambdas/getProductsHandler.getProducts
@@ -48,10 +59,32 @@ functions:
           path: product/{productId}
           method: delete
     environment:
-     PRODUCTS_TABLE: ${self:custom.tableName}       
+     PRODUCTS_TABLE: ${self:custom.tableName}
+  
+  convertToThumbnail:
+    handler: lambdas/convertToThumbnail.convertToThumbnail
+    events:
+      - eventBridge:
+          eventBus: default
+          pattern:
+            source:
+              - 'custom.createProduct'
+            # detail:
+            #   detailType:
+            #     - 'CreateProductEvent'
+    environment:
+     PRODUCTS_BUCKET: ${self:custom.bucketName}             
 
 resources:
   Resources:
+    # MyApiGateway:
+    #   Type: AWS::ApiGatewayV2::Api
+    #   Properties:
+    #     Name: MyApi
+    ProductBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.bucketName}
     ProductsTable:
       Type: AWS::DynamoDB::Table
       Properties:

@@ -1,12 +1,20 @@
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
+const {triggerEvent} = require("../methods/sendToEventBridge")
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
+// const eventBridge = new AWS.EventBridge();
+// const {EventBridgeClient} = require("@aws-sdk/client-eventbridge")
+// const { PutEventsCommand } = require("@aws-sdk/client-eventbridge");
+
+//  const ebClient = new EventBridgeClient({ region: 'ap-southeast-2' });
+
+
 const tableName = process.env.PRODUCTS_TABLE;
 
-const validateProductAttributes = (name, description, price) => {
-  if (!name || !description || !price) {
+const validateProductAttributes = (name, description, price, image_url) => {
+  if (!name || !description || !price || !image_url) {
     throw new Error("Missing required product attributes.");
   }
 
@@ -27,16 +35,19 @@ const validateProductAttributes = (name, description, price) => {
 
 module.exports.createProduct = async (event) => {
   try {
-    logger.info(JSON.parse(event.body));
-    const { name, description, price } = JSON.parse(event.body);
 
-    validateProductAttributes(name, description, price);
+    if(!JSON.parse(event.body)) throw new Error("Missing required product attributes")
+    logger.info(JSON.parse(event.body));
+    const { name, description, price , image_url } = JSON.parse(event.body);
+
+    validateProductAttributes(name, description, price,image_url);
 
     const product = {
       productId: uuidv4(),
       name,
       description,
       price,
+      image_url
     };
 
     const params = {
@@ -45,6 +56,12 @@ module.exports.createProduct = async (event) => {
     };
 
     await dynamoDB.put(params).promise();
+
+    const eventBridgeResponse= await triggerEvent(product)
+
+    if(!eventBridgeResponse){
+      throw Error("Event Bridge Error")
+    }
 
     responseBody = {
       status: "success",
