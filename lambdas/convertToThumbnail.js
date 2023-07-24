@@ -17,8 +17,6 @@ module.exports.convertToThumbnail = async (event) => {
     // Resize the image to a thumbnail
     const thumbnailBuffer = await resizeImageToThumbnail(imageBuffer);
 
-    // Generate a unique filename for the thumbnail
-
     // Upload the thumbnail to the S3 bucket
     await s3
       .putObject({
