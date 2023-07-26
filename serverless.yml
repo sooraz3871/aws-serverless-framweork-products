@@ -1,39 +1,34 @@
 service: product-service
 
-
 custom:
   tableName: 'Products'
   bucketName: 'productsbucketfortesting'
+
+
+plugins:
+  - serverless-iam-roles-per-function
 
 provider:
   name: aws
   runtime: nodejs16.x
   region: ap-southeast-2
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:Query
-            - dynamodb:Scan
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:DeleteItem
-            - s3:PutObject
-            - events:PutEvents  # Permission to publish events to EventBridge
-            - events:DescribeEventBus  # Permission to describe EventBridge event bus
-            - events:PutRule  # Permission to create/update EventBridge rule
-            - events:PutTargets
-            - lambda:InvokeFunction  # Permission to create/update targets for EventBridge rule
-            
-          Resource:
-            - Fn::GetAtt: [ ProductsTable, Arn ]  # Replace with the ARN of the DynamoDB table
-            - Fn::GetAtt: [ ProductBucket, Arn ]  # Replace with the ARN of the S3 bucket
-            - '*'  # Allows all resources for EventBridge permissions
 
 functions:
   createProduct:
     handler: lambdas/createProductHandler.createProduct
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - dynamodb:PutItem
+          - events:PutEvents  # Permission to publish events to EventBridge
+          - events:DescribeEventBus  # Permission to describe EventBridge event bus
+          - events:PutRule  # Permission to create/update EventBridge rule
+          - events:PutTargets
+          - events:*
+          - lambda:InvokeFunction
+        Resource:
+          - Fn::GetAtt: [ ProductsTable, Arn ]
+          - "*"
     events:
       - http:
           path: products
@@ -41,10 +36,20 @@ functions:
           cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}   
-     PRODUCTS_BUCKET: ${self:custom.bucketName}    
+     PRODUCTS_BUCKET: ${self:custom.bucketName}
+     REGION: ${self:provider.region} 
 
   getProducts:
     handler: lambdas/getProductsHandler.getProducts
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - dynamodb:Scan
+          - dynamodb:Query
+          - s3:*
+        Resource:
+          - Fn::GetAtt: [ ProductsTable, Arn ]
+          - Fn::GetAtt: [ ProductBucket, Arn ]
     events:
       - http:
           path: products
@@ -52,10 +57,19 @@ functions:
           cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}
-     PRODUCTS_BUCKET: ${self:custom.bucketName}       
-
+     PRODUCTS_BUCKET: ${self:custom.bucketName}
+            
   deleteProduct:
     handler: lambdas/deleteProductHandler.deleteProduct
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - dynamodb:DeleteItem
+          - dynamodb:GetItem
+          - s3:*
+        Resource:
+          - Fn::GetAtt: [ ProductsTable, Arn ] 
+          - Fn::GetAtt: [ ProductBucket, Arn ]   
     events:
       - http:
           path: products/{productId}
@@ -63,7 +77,8 @@ functions:
           cors: true
     environment:
      PRODUCTS_TABLE: ${self:custom.tableName}
-     PRODUCTS_BUCKET: ${self:custom.bucketName}    
+     PRODUCTS_BUCKET: ${self:custom.bucketName}
+     REGION: ${self:provider.region} 
   
   convertToThumbnail:
     handler: lambdas/convertToThumbnail.convertToThumbnail
@@ -72,14 +87,24 @@ functions:
           eventBus: default
           pattern:
             source:
-              - 'custom.createProduct' 
-
+              - custom.createProduct
+            detail-type:
+              - CreateProductEvent       
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - s3:PutObject
+          - lambda:InvokeFunction
+          - events:*
+        Resource:
+          - Fn::GetAtt: [ ProductBucket, Arn ]
+          - "*"
+    environment:
+     PRODUCTS_BUCKET: ${self:custom.bucketName}
+         
+             
 resources:
   Resources:
-    # MyApiGateway:
-    #   Type: AWS::ApiGatewayV2::Api
-    #   Properties:
-    #     Name: MyApi
     ProductBucket:
       Type: AWS::S3::Bucket
       Properties:
@@ -91,8 +116,7 @@ resources:
               AllowedMethods:
                 - GET
               AllowedOrigins:
-                - "*"  # Replace with specific allowed origins if needed
-
+                - "*"  # Replace with specific allowed origins if needed  
     ProductsTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -103,9 +127,19 @@ resources:
         KeySchema:
           - AttributeName: productId
             KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-
- 
-
+        BillingMode: PAY_PER_REQUEST 
+        
+    # PublicBucketPolicy:
+    #   Type: AWS::S3::BucketPolicy
+    #   Properties:
+    #     Bucket: !Ref ProductBucket
+    #     PolicyDocument:
+    #       Version: '2012-10-17'
+    #       Statement:
+    #         - Effect: Allow
+    #           Action:
+    #             - 's3:GetObject'
+    #           Resource:
+    #             - !Join ['/', [!GetAtt [ProductBucket, Arn], '*']]
+    #           Principal: '*'
+          

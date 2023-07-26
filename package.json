@@ -12,7 +12,11 @@
     "@aws-sdk/client-eventbridge": "^3.370.0",
     "axios": "^1.4.0",
     "jimp": "^0.22.8",
+    "serverless-python-requirements": "^6.0.0",
     "uuid": "^9.0.0",
     "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "serverless-iam-roles-per-function": "^3.2.0"
   }
 }
