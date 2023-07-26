@@ -22,19 +22,39 @@ module.exports.getProducts = async (event) => {
       product.imageURL = signedURL; // Add the signed URL to the product object
     }
 
-    responseBody = {
+    const responseBody = {
       status: "success",
       data: products,
     };
-    return {
-      statusCode: 200,
-      body: JSON.stringify(responseBody),
-    };
+    const response = buildResponse(200, responseBody);
+    return response
+
   } catch (error) {
-    logger.error(error);
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ message: error.message }),
-    };
+
+    console.error("Error creating product:", error);
+    const errorResponseData = { error: 'An error occurred', message: error.message };
+    const errorResponse = buildResponse(500, errorResponseData);
+
+    return errorResponse;
   }
 };
+
+
+const buildResponse=(statusCode,data)=>{
+
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    "content-type" : "application/json",
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,DELETE',
+  };
+
+  // Construct the response
+  const response = {
+    statusCode,
+    headers,
+    body: JSON.stringify(data),
+  };
+
+  return response;
+ 
+}

@@ -4,6 +4,15 @@ const {
 } = require("@aws-sdk/client-eventbridge");
 const logger = require("../utils/logger");
 
+
+/**
+* Function to trigger create thumbnail  event to Event Bus
+* @author   Suraj
+* @param    {Object} product
+* @return   {Boolean} true/false
+*/
+
+
 module.exports.triggerEvent = async (product) => {
   try {
     const ebClient = new EventBridgeClient();
